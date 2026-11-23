@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Dobogó Koffein Molekula</title>
+    <style>
+        body { margin: 0; background-color: #0d0d0d; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+<div style="text-align: center;">
+    <canvas id="caffeineCanvas" width="600" height="500" style="background: #0d0d0d; border-radius: 8px;"></canvas>
+</div>
+<script>
+(function() {
+    const canvas = document.getElementById('caffeineCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Koffein vázának atomjai (C, N, O és egyszerűsített CH3 csoportok a látvány kedvéért)
+    const atoms = [
+        { type: 'N', r: 14, color: '#3050F8', x: -30, y: -40, z: 0 },
+        { type: 'C', r: 16, color: '#909090', x: 20, y: -40, z: 10 },
+        { type: 'C', r: 16, color: '#909090', x: 50, y: 10, z: -10 },
+        { type: 'N', r: 14, color: '#3050F8', x: 20, y: 60, z: 0 },
+        { type: 'C', r: 16, color: '#909090', x: -30, y: 60, z: 10 },
+        { type: 'C', r: 16, color: '#909090', x: -60, y: 10, z: -10 },
+        // Karbonil oxigének
+        { type: 'O', r: 14, color: '#FF0D0D', x: 100, y: 10, z: -20 },
+        { type: 'O', r: 14, color: '#FF0D0D', x: -110, y: 10, z: -20 },
+        // Metil csoportok
+        { type: 'C', r: 16, color: '#909090', x: -50, y: -90, z: 20 },
+        { type: 'C', r: 16, color: '#909090', x: 50, y: 110, z: 20 },
+        // Öttagú gyűrű atomjai
+        { type: 'N', r: 14, color: '#3050F8', x: -80, y: -30, z: 5 },
+        { type: 'C', r: 16, color: '#909090', x: -110, y: -70, z: 15 },
+        { type: 'C', r: 16, color: '#909090', x: -110, y: -10, z: 5 },
+        { type: 'N', r: 14, color: '#3050F8', x: -80, y: 30, z: 0 }
+    ];
+
+    // Kötések indexei [atom1, atom2]
+    const bonds = [
+        [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],
+        [2, 6], [5, 7], [0, 8], [3, 9],
+        [0, 10], [10, 11], [10, 12], [12, 13], [13, 4]
+    ];
+
+    let angleX = 0.5;
+    let angleY = 0.5;
+    let time = 0;
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Szívverés üteme (szinusz hullámok kombinációja a kettős dobbanáshoz)
+        time += 0.05;
+        let heartbeat = 1.0 + 0.15 * Math.pow(Math.sin(time * 2), 2) * (Math.sin(time * 2) > 0 ? 1 : 0.2);
+        
+        // Forgatás folyamatosan
+        angleX += 0.01;
+        angleY += 0.012;
+
+        // 3D Transzformáció és Forgatás
+        let projected = atoms.map(atom => {
+            let x = atom.x * heartbeat;
+            let y = atom.y * heartbeat;
+            let z = atom.z * heartbeat;
+
+            // Forgatás Y tengely körül
+            let x1 = x * Math.cos(angleY) - z * Math.sin(angleY);
+            let z1 = x * Math.sin(angleY) + z * Math.cos(angleY);
+
+            // Forgatás X tengely körül
+            let y2 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+            let z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
+
+            return {
+                type: atom.type,
+                r: atom.r * (1 + z2 / 400), 
+                color: atom.color,
+                x: x1 + canvas.width / 2,
+                y: y2 + canvas.height / 2,
+                z: z2
+            };
+        });
+
+        // Kötések kirajzolása
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 5;
+        bonds.forEach(bond => {
+            let a1 = projected[bond[0]];
+            let a2 = projected[bond[1]];
+            ctx.beginPath();
+            ctx.moveTo(a1.x, a1.y);
+            ctx.lineTo(a2.x, a2.y);
+            ctx.stroke();
+        });
+
+        // Atomok (gömbök) kirajzolása mélység szerint
+        let sortedIndices = projected.map((atom, idx) => ({ atom, idx })).sort((a, b) => a.atom.z - b.atom.z);
+
+        sortedIndices.forEach(({ atom }) => {
+            ctx.beginPath();
+            let grad = ctx.createRadialGradient(atom.x - atom.r/3, atom.y - atom.r/3, atom.r/10, atom.x, atom.y, atom.r);
+            
+            if (atom.type === 'C') {
+                grad.addColorStop(0, '#a0a0a0');
+                grad.addColorStop(1, '#444444');
+            } else if (atom.type === 'N') {
+                grad.addColorStop(0, '#8090ff');
+                grad.addColorStop(1, '#1020d0');
+            } else if (atom.type === 'O') {
+                grad.addColorStop(0, '#ff8080');
+                grad.addColorStop(1, '#d01010');
+            }
+
+            ctx.fillStyle = grad;
+            ctx.arc(atom.x, atom.y, atom.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+
+        // Szívdobbanás vizuális pulzáló háttéreffektje
+        let pulseIntensity = Math.floor((heartbeat - 1.0) * 100);
+        canvas.style.boxShadow = `0 0 ${pulseIntensity}px rgba(255, 13, 13, ${pulseIntensity/100})`;
+
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+})();
+</script>
+
+</body>
+</html>
